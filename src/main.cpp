@@ -7,7 +7,8 @@ using namespace std;
 char helper_addmove(int pos, char maxmin);
 void helper_printboard(char b[9]);
 int helper_staticeval(char b[9]);
-bool helper_draw(char b[9]);
+bool helper_movesleft(char b[9]);
+void helper_moveswapper(bool player);
 
 int minimax(int depth, bool maxplr, char b[9]);
 void playeradd();
@@ -55,23 +56,23 @@ bool iswin(char a, char b, char c, char d){
 }
 
 int helper_staticeval(char b[9]){
-	if (iswin(b[0], b[1], b[2], 'X') or iswin(b[3], b[4], b[5], 'X') or iswin(b[6], b[7], b[8], 'X')){
-		return 1; // ai win (max)
+	if (iswin(b[0], b[1], b[2], maxplayer) or iswin(b[3], b[4], b[5], maxplayer) or iswin(b[6], b[7], b[8], maxplayer)){
+		return 10; // ai win (max)
 	}
-	else if (iswin(b[0], b[1], b[2], '0') or iswin(b[3], b[4], b[5], '0') or iswin(b[6], b[7], b[8], '0')){
-		return -1; // player win (min)
+	else if (iswin(b[0], b[1], b[2], minplayer) or iswin(b[3], b[4], b[5], minplayer) or iswin(b[6], b[7], b[8], minplayer)){
+		return -10; // player win (min)
 	}
-	else if (iswin(b[0], b[3], b[6], 'X') or iswin(b[1], b[4], b[7], 'X') or iswin(b[2], b[5], b[8], 'X')){
-		return 1;
+	else if (iswin(b[0], b[3], b[6], maxplayer) or iswin(b[1], b[4], b[7], maxplayer) or iswin(b[2], b[5], b[8], maxplayer)){
+		return 10;
 	}
-	else if (iswin(b[0], b[3], b[6], '0') or iswin(b[1], b[4], b[7], '0') or iswin(b[2], b[5], b[8], '0')){
-		return -1;
+	else if (iswin(b[0], b[3], b[6], minplayer) or iswin(b[1], b[4], b[7], minplayer) or iswin(b[2], b[5], b[8], minplayer)){
+		return -10;
 	}
-	else if (iswin(b[0], b[4], b[8], 'X') or iswin(b[2], b[4], b[6], 'X')){
-		return 1;
+	else if (iswin(b[0], b[4], b[8], maxplayer) or iswin(b[2], b[4], b[6], maxplayer)){
+		return 10;
 	}
-	else if (iswin(b[0], b[4], b[8], '0') or iswin(b[2], b[4], b[6], '0')){
-		return -1;
+	else if (iswin(b[0], b[4], b[8], minplayer) or iswin(b[2], b[4], b[6], minplayer)){
+		return -10;
 	}
 	else{
 		return 0; // draw / no win
@@ -80,54 +81,72 @@ int helper_staticeval(char b[9]){
 }
 
 
-bool helper_draw(char b[9]){
+bool helper_movesleft(char b[9]){
 	for (int i = 0; i < 9; i++){
 		if (b[i] == '-'){
-			return false;		
+			return true;		
 		}
 	}
-	return true;
+	return false;
 }
 
 int minimax(int depth, bool maxplr, char b[9]){
-	if (depth <= 0 or helper_staticeval(b) != 0 or helper_draw(b)) {
-		cout << helper_staticeval(b) << '\n';
-		return helper_staticeval(b);
+	int score = helper_staticeval(b);
+
+	if (score == 10){
+		return score - depth;
+	}
+	else if (score == -10){
+		return score + depth;
+	}
+	else if (!helper_movesleft(b)){
+		return 0;
 	}
 
-	if (maxplr) {
-		int maxeval = -10;
+	if (maxplr){
+		int maxeval = -1000;
+
 		for (int i = 0; i < 9; i++){
 			if (b[i] == '-'){
-				char tempb[9];
-				strncpy(tempb, b, 9);
-				tempb[i] = 'X';
-				int eval = minimax((depth - 1), false, tempb);
-				if (maxeval < eval){
-					maxeval = eval;
-				}
+				b[i] = maxplayer;
+				maxeval = max(maxeval, minimax(depth++, false, b));
+				b[i] = '-';
 			}
 		}
 		return maxeval;
 	}
-	else {
-		int eval;
-		int mineval = 10;
+	else{
+		int mineval = 1000;
+
 		for (int i = 0; i < 9; i++){
 			if (b[i] == '-'){
-				char tempb[9];
-				strncpy(tempb, b, 9);
-				tempb[i] = '0';
-				eval = minimax((depth - 1), true, tempb);
-				if (mineval > eval){
-					mineval = eval;
-				}
+				b[i] = minplayer;
+				mineval = min(mineval, minimax(depth++, true, b));
+				b[i] = '-';
 			}
 		}
 		return mineval;
 	}
 
 }
+
+int bestmove(char b[9]){
+	int bestval = -1000;
+	int optimalmove;
+	for (int i = 0; i < 9; i++){
+		if (b[i] == '-'){
+			b[i] = maxplayer;
+			int movescore = minimax(0, true, b);
+			b[i] = '-';
+			if (movescore > bestval){
+				bestval = movescore;
+				optimalmove = i;
+			}
+		}
+	}
+	return optimalmove;
+}
+
 
 void playeradd(){
 	int move;
@@ -140,40 +159,34 @@ void playeradd(){
 		cout << "That isn't a valid move! - trying again...\n";
 		playeradd();
 	}
-	aiadd();
+	helper_moveswapper(false);
 }
 
 void aiadd(){
-	char tempboard[9];
-	bool movemade = false;
-	vector<pair<int, int>> vals;
-	for (int i = 0; i < 9; i++){		
-		strncpy(tempboard, board, 9);
-		if (board[i] == '-'){
-			tempboard[i] = '0';
-			int val = minimax(6, true, tempboard);
-			vals.push_back(make_pair(i, val));
-		}
-	}
-
-	for (pair <int, int> p : vals){
-		//cout << p.second << '\n';
-	}
-
-	for (pair <int, int> p : vals){
-		if (p.second == -1 && !movemade){
-			helper_addmove(p.first, maxplayer);
-			movemade = true;
-			break;
-		}
-	}
-
-	for (pair <int, int> p : vals){
-		if (p.second == 0 && !movemade){
-			helper_addmove(p.first, maxplayer);
-			movemade = true;
-			break;
-		}
-	}
-	playeradd();
+	int optimal = bestmove(board);
+	helper_addmove(optimal, maxplayer);
+	helper_moveswapper(true);
 }
+
+void helper_moveswapper(bool player){
+	int score = helper_staticeval(board);
+	if (score == 10){
+		cout << "The AI has won!\n";
+	}
+	else if (score == -10){
+		cout << "The player has won!\n";
+	}
+	else if (!helper_movesleft(board)){
+		cout << "Draw!\n";
+	}
+	else{
+		if (player){
+			playeradd();
+		}
+		else{
+			aiadd();
+		}
+	}
+}
+
+
